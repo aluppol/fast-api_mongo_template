@@ -1,0 +1,58 @@
+services:
+  mongo:
+    image: mongo:7.0
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: ${DB_ROOT_USER}
+      MONGO_INITDB_ROOT_PASSWORD: ${DB_ROOT_PASS}
+
+      DB_NAME: ${DB_NAME}
+      DB_API_USER: ${DB_API_USER}
+      DB_API_PASS: ${DB_API_PASS}
+
+      DB_PEOPLE_COLLECTION_NAME: ${DB_PEOPLE_COLLECTION_NAME}
+
+    ports:
+      - "${DB_PORT}:27017"
+    networks:
+      - app_network
+    volumes:
+      - mongo_data:/data/db  # Persists MongoDB data between container restarts
+      - ./database/mongo-init.js:/docker-entrypoint-initdb.d/mongo-init.js
+
+
+  api:
+    build: ./api
+    ports:
+      - "${API_PORT}:8000"
+    volumes:
+      - ./api/app:/app
+    depends_on:
+      - mongo
+    networks:
+      - app_network
+    environment:
+        API_PORT: ${API_PORT}
+
+        DB_NAME: ${DB_NAME}
+        DB_HOST: ${DB_HOST}
+        DB_PORT: ${DB_PORT}
+
+        DB_API_USER: ${DB_API_USER}
+        DB_API_PASS: ${DB_API_PASS}
+        DB_PEOPLE_COLLECTION_NAME: ${DB_PEOPLE_COLLECTION_NAME}
+
+        ENV: ${ENV}
+
+    command: >
+      sh -c "if [ \"$$ENV\" = 'dev' ]; then 
+                python -m uvicorn main:app --host 0.0.0.0 --port 8000 --reload;
+             else 
+                python -m uvicorn main:app --host 0.0.0.0 --port 8000;
+             fi"
+
+volumes:
+  mongo_data:
+
+networks:
+  app_network:
+    driver: bridge
